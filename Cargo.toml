@@ -1,0 +1,15 @@
+[package]
+name = "malrok"
+version = "0.1.0"
+edition = "2021"
+description = "An 2D MMORPG made with Bevy"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/afonsolage/malrok"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bevy = "0.9"
+
+[profile.dev.package."*"]
+opt-level = 3
