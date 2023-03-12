@@ -1,9 +1,13 @@
+use std::f32::consts::PI;
+
 use bevy::{prelude::*, DefaultPlugins};
+use bevy_editor_pls::EditorPlugin;
 use leafwing_input_manager::prelude::*;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(EditorPlugin)
         .add_plugin(InputManagerPlugin::<Action>::default())
         .add_system(move_player)
         .add_startup_system(setup_camera)
@@ -90,20 +94,18 @@ fn setup_test_environment(
         },));
     }
 
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
-            intensity: 9000.0,
-            range: 100.,
+    commands.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
             shadows_enabled: true,
-            ..default()
+            ..Default::default()
         },
-        transform: Transform::from_xyz(8.0, 16.0, 8.0),
-        ..default()
+        transform: Transform::from_xyz(0.0, 100.0, 0.0).with_rotation(Quat::from_rotation_x(-PI / 4.0)),
+        ..Default::default()
     });
 
     // ground plane
     commands.spawn(PbrBundle {
-        mesh: meshes.add(shape::Plane { size: 50. }.into()),
+        mesh: meshes.add(shape::Plane { size: 500. }.into()),
         material: materials.add(Color::SILVER.into()),
         ..default()
     });
