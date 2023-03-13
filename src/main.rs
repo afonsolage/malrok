@@ -66,33 +66,26 @@ fn setup_test_environment(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    const X_EXTENT: f32 = 14.0;
+    const MAP_SIZE: u32 = 500;
 
-    let debug_material = materials.add(StandardMaterial { ..default() });
+    let obstacle_model = PbrBundle {
+        mesh: meshes.add(shape::Cube::default().into()),
+        material: materials.add(StandardMaterial { ..default() }),
+        ..Default::default()
+    };
 
-    let shapes = [
-        meshes.add(shape::Cube::default().into()),
-        meshes.add(shape::Box::default().into()),
-        meshes.add(shape::Torus::default().into()),
-        meshes.add(shape::Icosphere::default().try_into().unwrap()),
-        meshes.add(shape::UVSphere::default().into()),
-    ];
-
-    let num_shapes = shapes.len();
-
-    for (i, shape) in shapes.into_iter().enumerate() {
-        commands.spawn((PbrBundle {
-            mesh: shape,
-            material: debug_material.clone(),
-            transform: Transform::from_xyz(
-                -X_EXTENT / 2. + i as f32 / (num_shapes - 1) as f32 * X_EXTENT,
-                2.0,
-                0.0,
-            )
-            .with_rotation(Quat::from_rotation_x(-std::f32::consts::PI / 4.)),
-            ..default()
-        },));
-    }
+    const HALF_SIZE: f32 = MAP_SIZE as f32 / 2.0;
+    const OBSTACLE_COUNT: u32 = MAP_SIZE / 10;
+    commands.spawn(SpatialBundle::default()).insert(Name::new(format!("Obstacles"))).with_children(|parent| {
+        for x in 0..=OBSTACLE_COUNT {
+            for z in 0..=OBSTACLE_COUNT {
+                parent.spawn(PbrBundle {
+                    transform: Transform::from_xyz((x * 10) as f32 - HALF_SIZE, 0.5, (z * 10) as f32 - HALF_SIZE),
+                    ..obstacle_model.clone()
+                }).insert(Name::new(format!("{}, {}", x, z)));
+            }
+        }
+    });
 
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
@@ -105,7 +98,7 @@ fn setup_test_environment(
 
     // ground plane
     commands.spawn(PbrBundle {
-        mesh: meshes.add(shape::Plane { size: 500. }.into()),
+        mesh: meshes.add(shape::Plane { size: MAP_SIZE as f32}.into()),
         material: materials.add(Color::SILVER.into()),
         ..default()
     });
