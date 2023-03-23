@@ -1,12 +1,26 @@
 use std::f32::consts::PI;
 
-use bevy::{prelude::*, DefaultPlugins};
+use bevy::{
+    prelude::*,
+    render::{
+        mesh::Indices,
+        render_resource::PrimitiveTopology,
+        settings::{WgpuFeatures, WgpuSettings},
+        RenderPlugin,
+    },
+    DefaultPlugins,
+};
 use bevy_editor_pls::EditorPlugin;
 use leafwing_input_manager::prelude::*;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(RenderPlugin {
+            wgpu_settings: WgpuSettings {
+                features: WgpuFeatures::POLYGON_MODE_LINE,
+                ..default()
+            },
+        }))
         .add_plugin(EditorPlugin)
         .add_plugin(InputManagerPlugin::<Action>::default())
         .add_system(move_player)
@@ -108,14 +122,10 @@ fn setup_test_environment(
         ..Default::default()
     });
 
+    let terrain_mesh = generate_terrain();
     // ground plane
     commands.spawn(PbrBundle {
-        mesh: meshes.add(
-            shape::Plane {
-                size: MAP_SIZE as f32,
-            }
-            .into(),
-        ),
+        mesh: meshes.add(terrain_mesh),
         material: materials.add(Color::SILVER.into()),
         ..default()
     });
@@ -132,4 +142,61 @@ fn setup_camera(mut commands: Commands) {
         },
         MainCamera,
     ));
+}
+
+#[derive(Default, Clone, Copy)]
+struct Tile {
+    pub x: u16,
+    pub z: u16,
+    pub heights: [u16; 4],
+}
+
+impl Tile {
+    fn append_vertices(&self, mut vertices: Vec<[f32; 3]>) -> Vec<[f32; 3]> {
+        vertices.push([self.x as f32, self.heights[0] as f32, self.z as f32]);
+        vertices.push([self.x as f32, self.heights[1] as f32, (self.z + 1) as f32]);
+        vertices.push([
+            (self.x + 1) as f32,
+            self.heights[2] as f32,
+            (self.z + 1) as f32,
+        ]);
+        vertices.push([(self.x + 1) as f32, self.heights[3] as f32, self.z as f32]);
+        vertices
+    }
+
+    fn append_indices(&self, (next_index, mut indices): (u32, Vec<u32>)) -> (u32, Vec<u32>) {
+        indices.push(next_index);
+        indices.push(next_index + 1);
+        indices.push(next_index + 2);
+
+        indices.push(next_index + 2);
+        indices.push(next_index + 3);
+        indices.push(next_index);
+
+        (next_index + 4, indices)
+    }
+}
+
+fn generate_terrain() -> Mesh {
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+
+    const MAP_SIZE: u16 = 128;
+
+    let tiles = (0..MAP_SIZE * MAP_SIZE)
+        .map(|i| Tile {
+            x: i / MAP_SIZE,
+            z: i % MAP_SIZE,
+            heights: Default::default(),
+        })
+        .collect::<Vec<_>>();
+
+    let vertices = tiles.iter().fold(Vec::new(), |v, t| t.append_vertices(v));
+    let (_, indices) = tiles
+        .iter()
+        .fold((0, Vec::new()), |p, t| t.append_indices(p));
+
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
+    mesh.set_indices(Some(Indices::U32(indices)));
+
+    mesh
 }
