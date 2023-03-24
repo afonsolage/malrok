@@ -144,7 +144,7 @@ fn setup_camera(mut commands: Commands) {
     ));
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Clone, Copy)]
 struct Tile {
     pub x: u16,
     pub z: u16,
@@ -152,6 +152,19 @@ struct Tile {
 }
 
 impl Tile {
+    fn new(x: u16, z: u16) -> Tile {
+        Tile {
+            x,
+            z,
+            heights: [
+                Tile::generate_height(x, z),
+                Tile::generate_height(x, z + 1),
+                Tile::generate_height(x + 1, z + 1),
+                Tile::generate_height(x + 1, z),
+            ]
+        }
+    }
+
     fn v0(&self) -> Vec3 {
         Vec3::new(self.x as f32, self.heights[0] as f32, self.z as f32)
     }
@@ -166,6 +179,14 @@ impl Tile {
     
     fn v3(&self) -> Vec3 {
         Vec3::new(self.x as f32, self.heights[3] as f32, self.z as f32)
+    }
+
+    fn generate_height(x: u16, z: u16) -> u16 {
+        if x % 2 == 0 || z % 2 == 0 {
+            0
+        } else {
+            1
+        }
     }
 
     fn append_vertices(&self, mut vertices: Vec<[f32; 3]>) -> Vec<[f32; 3]> {
@@ -213,11 +234,7 @@ fn generate_terrain() -> Mesh {
     const MAP_SIZE: u16 = 128;
 
     let tiles = (0..MAP_SIZE * MAP_SIZE)
-        .map(|i| Tile {
-            x: i / MAP_SIZE,
-            z: i % MAP_SIZE,
-            heights: Default::default(),
-        })
+        .map(|i| Tile::new(i / MAP_SIZE, i % MAP_SIZE))
         .collect::<Vec<_>>();
 
     let vertices = tiles.iter().fold(Vec::new(), |v, t| t.append_vertices(v));
