@@ -152,6 +152,22 @@ struct Tile {
 }
 
 impl Tile {
+    fn v0(&self) -> Vec3 {
+        Vec3::new(self.x as f32, self.heights[0] as f32, self.z as f32)
+    }
+
+    fn v1(&self) -> Vec3 {
+        Vec3::new(self.x as f32, self.heights[1] as f32, self.z as f32)
+    }
+
+    fn v2(&self) -> Vec3 {
+        Vec3::new(self.x as f32, self.heights[2] as f32, self.z as f32)
+    }
+    
+    fn v3(&self) -> Vec3 {
+        Vec3::new(self.x as f32, self.heights[3] as f32, self.z as f32)
+    }
+
     fn append_vertices(&self, mut vertices: Vec<[f32; 3]>) -> Vec<[f32; 3]> {
         vertices.push([self.x as f32, self.heights[0] as f32, self.z as f32]);
         vertices.push([self.x as f32, self.heights[1] as f32, (self.z + 1) as f32]);
@@ -175,6 +191,20 @@ impl Tile {
 
         (next_index + 4, indices)
     }
+
+    fn append_normals(&self, mut normals: Vec<[f32; 3]>) -> Vec<[f32; 3]> {
+        let n0 = (self.v3() - self.v0()).cross(self.v1() - self.v0()).normalize();
+        let n1 = (self.v0() - self.v1()).cross(self.v2() - self.v1()).normalize();
+        let n2 = (self.v1() - self.v2()).cross(self.v3() - self.v2()).normalize();
+        let n3 = (self.v2() - self.v3()).cross(self.v0() - self.v3()).normalize();
+
+        normals.push(n0.to_array());
+        normals.push(n1.to_array());
+        normals.push(n2.to_array());
+        normals.push(n3.to_array());
+
+        normals
+    }
 }
 
 fn generate_terrain() -> Mesh {
@@ -194,8 +224,10 @@ fn generate_terrain() -> Mesh {
     let (_, indices) = tiles
         .iter()
         .fold((0, Vec::new()), |p, t| t.append_indices(p));
+    let normals = tiles.iter().fold(Vec::new(), |v, t| t.append_normals(v));
 
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
     mesh.set_indices(Some(Indices::U32(indices)));
 
     mesh
