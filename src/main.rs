@@ -124,11 +124,14 @@ fn setup_test_environment(
 
     let terrain_mesh = generate_terrain();
     // ground plane
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(terrain_mesh),
-        material: materials.add(Color::SILVER.into()),
-        ..default()
-    });
+    commands.spawn((
+        PbrBundle {
+            mesh: meshes.add(terrain_mesh),
+            material: materials.add(Color::LIME_GREEN.into()),
+            ..default()
+        },
+        Name::new("Terrain"),
+    ));
 }
 
 #[derive(Component, Debug, Clone, Copy)]
@@ -161,7 +164,7 @@ impl Tile {
                 Tile::generate_height(x, z + 1),
                 Tile::generate_height(x + 1, z + 1),
                 Tile::generate_height(x + 1, z),
-            ]
+            ],
         }
     }
 
@@ -170,15 +173,23 @@ impl Tile {
     }
 
     fn v1(&self) -> Vec3 {
-        Vec3::new(self.x as f32, self.heights[1] as f32, self.z as f32)
+        Vec3::new(self.x as f32, self.heights[1] as f32, (self.z + 1) as f32)
     }
 
     fn v2(&self) -> Vec3 {
-        Vec3::new(self.x as f32, self.heights[2] as f32, self.z as f32)
+        Vec3::new(
+            (self.x + 1) as f32,
+            self.heights[2] as f32,
+            (self.z + 1) as f32,
+        )
     }
-    
+
     fn v3(&self) -> Vec3 {
-        Vec3::new(self.x as f32, self.heights[3] as f32, self.z as f32)
+        Vec3::new(
+            (self.x + 1) as f32,
+            self.heights[3] as f32,
+            (self.z + 1) as f32,
+        )
     }
 
     fn generate_height(x: u16, z: u16) -> u16 {
@@ -214,10 +225,18 @@ impl Tile {
     }
 
     fn append_normals(&self, mut normals: Vec<[f32; 3]>) -> Vec<[f32; 3]> {
-        let n0 = (self.v3() - self.v0()).cross(self.v1() - self.v0()).normalize();
-        let n1 = (self.v0() - self.v1()).cross(self.v2() - self.v1()).normalize();
-        let n2 = (self.v1() - self.v2()).cross(self.v3() - self.v2()).normalize();
-        let n3 = (self.v2() - self.v3()).cross(self.v0() - self.v3()).normalize();
+        let n0 = (self.v3() - self.v0())
+            .cross(self.v1() - self.v0())
+            .normalize();
+        let n1 = (self.v0() - self.v1())
+            .cross(self.v2() - self.v1())
+            .normalize();
+        let n2 = (self.v1() - self.v2())
+            .cross(self.v3() - self.v2())
+            .normalize();
+        let n3 = (self.v2() - self.v3())
+            .cross(self.v0() - self.v3())
+            .normalize();
 
         normals.push(n0.to_array());
         normals.push(n1.to_array());
