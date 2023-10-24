@@ -5,32 +5,32 @@ use bevy::{
     render::{
         mesh::Indices,
         render_resource::PrimitiveTopology,
-        settings::{WgpuFeatures, WgpuSettings},
+        settings::{Backends, WgpuFeatures, WgpuSettings},
         RenderPlugin,
     },
     DefaultPlugins,
 };
-use bevy_editor_pls::EditorPlugin;
 use leafwing_input_manager::prelude::*;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(RenderPlugin {
             wgpu_settings: WgpuSettings {
+                backends: Some(Backends::VULKAN),
                 features: WgpuFeatures::POLYGON_MODE_LINE,
                 ..default()
             },
         }))
-        .add_plugin(EditorPlugin)
-        .add_plugin(InputManagerPlugin::<Action>::default())
-        .add_system(move_player)
-        .add_startup_system(setup_camera)
-        .add_startup_system(setup_test_environment)
-        .add_startup_system(spawn_player)
+        .add_plugins(InputManagerPlugin::<Action>::default())
+        .add_systems(Update, move_player)
+        .add_systems(
+            Startup,
+            (setup_camera, setup_test_environment, spawn_player),
+        )
         .run();
 }
 
-#[derive(Actionlike, PartialEq, PartialOrd, Clone, Copy, Hash, Debug)]
+#[derive(Actionlike, PartialEq, PartialOrd, Clone, Copy, Hash, Debug, Reflect)]
 enum Action {
     Move,
 }
