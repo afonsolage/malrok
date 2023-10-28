@@ -7,6 +7,7 @@ use bevy::{
     },
     DefaultPlugins,
 };
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 mod fly_by_cam;
 mod map;
@@ -21,6 +22,7 @@ fn main() {
                 ..default()
             },
         }))
+        .add_plugins(WorldInspectorPlugin::new())
         .add_plugins((
             fly_by_cam::FlyByCameraPlugin,
             map::MapPlugin,
