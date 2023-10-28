@@ -2,6 +2,7 @@ use bevy::{
     prelude::*,
     render::{mesh::Indices, render_resource::PrimitiveTopology},
 };
+use libnoise::prelude::*;
 
 pub struct MapPlugin;
 
@@ -78,16 +79,11 @@ struct Tile {
 }
 
 impl Tile {
-    fn new(x: u16, z: u16) -> Tile {
+    fn new(x: u16, z: u16, generator: impl Generator2D) -> Tile {
         Tile {
             x,
             z,
-            heights: [
-                Tile::generate_height(x, z),
-                Tile::generate_height(x, z + 1),
-                Tile::generate_height(x + 1, z + 1),
-                Tile::generate_height(x + 1, z),
-            ],
+            heights: Self::generate_height(x, z, generator),
         }
     }
 
@@ -115,13 +111,13 @@ impl Tile {
         )
     }
 
-    fn generate_height(_x: u16, _z: u16) -> u16 {
-        // if x % 2 == 0 || z % 2 == 0 {
-        //     0
-        // } else {
-        //     1
-        // }
-        0
+    fn generate_height(x: u16, z: u16, generator: impl Generator2D) -> [u16; 4] {
+        [
+            generator.sample([x as f64, z as f64]) as u16,
+            generator.sample([x as f64 + 1.0, z as f64]) as u16,
+            generator.sample([x as f64, z as f64 + 1.0]) as u16,
+            generator.sample([x as f64 + 1.0, z as f64 + 1.0]) as u16,
+        ]
     }
 
     fn append_vertices(&self, mut vertices: Vec<[f32; 3]>) -> Vec<[f32; 3]> {
@@ -176,8 +172,10 @@ fn generate_terrain() -> Mesh {
 
     const MAP_SIZE: u16 = 128;
 
+    let generator = Source::simplex(42);
+
     let tiles = (0..MAP_SIZE * MAP_SIZE)
-        .map(|i| Tile::new(i / MAP_SIZE, i % MAP_SIZE))
+        .map(|i| Tile::new(i / MAP_SIZE, i % MAP_SIZE, generator.clone()))
         .collect::<Vec<_>>();
 
     let vertices = tiles.iter().fold(Vec::new(), |v, t| t.append_vertices(v));
