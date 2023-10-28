@@ -8,12 +8,17 @@ pub struct FlyByCameraPlugin;
 
 impl Plugin for FlyByCameraPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<FlyByCameraConfig>().add_systems(
-            Update,
-            (move_camera, rotate_camera, grab_mouse)
-                .in_set(CameraUpdate)
-                .run_if(is_active),
-        );
+        app.init_resource::<FlyByCameraConfig>()
+            .add_systems(
+                Update,
+                (move_camera, rotate_camera)
+                    .in_set(CameraUpdate)
+                    .run_if(is_active),
+            )
+            .add_systems(
+                Update,
+                toggle_mouse_grab.run_if(resource_changed::<FlyByCameraConfig>()),
+            );
     }
 }
 
@@ -195,11 +200,14 @@ fn calc_input_vector(input: &Res<Input<KeyCode>>, bindings: &KeyBindings) -> Vec
     res
 }
 
-fn grab_mouse(
-    mut windows: Query<&mut Window>,
-) {
+fn toggle_mouse_grab(mut windows: Query<&mut Window>, config: Res<FlyByCameraConfig>) {
     if let Ok(mut window) = windows.get_single_mut() {
-        // window.cursor.visible = false;
-        window.cursor.grab_mode = bevy::window::CursorGrabMode::Locked;
+        if config.active {
+            window.cursor.visible = false;
+            window.cursor.grab_mode = bevy::window::CursorGrabMode::Locked;
+        } else {
+            window.cursor.visible = true;
+            window.cursor.grab_mode = bevy::window::CursorGrabMode::None;
+        }
     }
 }
