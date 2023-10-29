@@ -4,6 +4,8 @@ use bevy::{
 };
 use libnoise::prelude::*;
 
+mod heightmap;
+
 pub struct MapPlugin;
 
 impl Plugin for MapPlugin {
