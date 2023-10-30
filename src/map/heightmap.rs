@@ -49,12 +49,24 @@ impl std::ops::IndexMut<usize> for Heightmap {
     }
 }
 
+impl std::fmt::Display for Heightmap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Heightmap [{},{}]({})",
+            self.width,
+            self.depth,
+            self.buffer.len()
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_new_height_map() {
+    fn new_height_map() {
         let width = 3;
         let depth = 4;
         let heightmap = Heightmap::new(width, depth);
@@ -68,7 +80,7 @@ mod tests {
     }
 
     #[test]
-    fn test_index_and_position() {
+    fn index_and_position() {
         let heightmap = Heightmap::new(3, 3);
 
         let index = heightmap.index(1, 2);
@@ -79,7 +91,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_and_set() {
+    fn get_and_set() {
         let mut heightmap = Heightmap::new(3, 3);
 
         heightmap.set(1, 2, 42);
@@ -89,12 +101,30 @@ mod tests {
     }
 
     #[test]
-    fn test_index_operator() {
+    fn index_operator() {
         let mut heightmap = Heightmap::new(3, 3);
 
         heightmap[5] = 42;
         let value = heightmap[5];
 
         assert_eq!(value, 42);
+    }
+
+    #[test]
+    fn cache_friendly() {
+        let mut heightmap = Heightmap::new(10, 10);
+
+        for i in 0..100 {
+            heightmap[i as usize] = i;
+        }
+
+        assert_eq!(heightmap.get(0, 0), 0);
+        assert_eq!(heightmap.get(0, 1), 1);
+        assert_eq!(heightmap.get(0, 2), 2);
+        assert_eq!(heightmap.get(0, 3), 3);
+        assert_eq!(heightmap.get(1, 0), 10);
+        assert_eq!(heightmap.get(1, 1), 11);
+        assert_eq!(heightmap.get(1, 2), 12);
+        assert_eq!(heightmap.get(1, 3), 13);
     }
 }

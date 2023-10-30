@@ -4,6 +4,8 @@ use bevy::{
 };
 use libnoise::prelude::*;
 
+use self::heightmap::Heightmap;
+
 mod heightmap;
 
 pub struct MapPlugin;
@@ -31,7 +33,7 @@ fn setup_test_environment(
     const OBSTACLE_COUNT: u32 = MAP_SIZE / 10;
 
     commands
-        .spawn((SpatialBundle::default(), Name::new(format!("Obstacles"))))
+        .spawn((SpatialBundle::default(), Name::new("Obstacles")))
         .with_children(|parent| {
             for x in 0..=OBSTACLE_COUNT {
                 for z in 0..=OBSTACLE_COUNT {
@@ -62,6 +64,7 @@ fn setup_test_environment(
     });
 
     let terrain_mesh = generate_terrain();
+
     // ground plane
     commands.spawn((
         PbrBundle {
@@ -71,6 +74,20 @@ fn setup_test_environment(
         },
         Name::new("Terrain"),
     ));
+}
+
+fn generate_heightmap() -> Heightmap {
+    let mut heightmap = Heightmap::new(256, 256);
+
+    let generator = Source::simplex(42);
+
+    for x in 0..256 {
+        for z in 0..256 {
+            heightmap.set(x, z, (generator.sample([x as f64, z as f64])) as i16);
+        }
+    }
+
+    heightmap
 }
 
 #[derive(Clone, Copy)]
@@ -172,6 +189,7 @@ impl Tile {
 fn generate_terrain() -> Mesh {
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
 
+    let _heightmap = generate_heightmap();
     const MAP_SIZE: u16 = 128;
 
     let generator = Source::simplex(42);
