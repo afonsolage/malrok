@@ -8,8 +8,9 @@ use bevy::{
         texture::ImageSampler,
     },
 };
+use bevy_inspector_egui::quick::ResourceInspectorPlugin;
 
-use self::heightmap::Heightmap;
+use self::heightmap::{Heightmap, HeightmapConfig};
 
 mod generator;
 mod heightmap;
@@ -18,15 +19,23 @@ pub struct MapPlugin;
 
 impl Plugin for MapPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_test_environment);
+        app.add_systems(Startup, setup_test_environment)
+            .init_resource::<HeightmapConfig>()
+            .add_plugins(ResourceInspectorPlugin::<HeightmapConfig>::default())
+            .add_systems(
+                Update,
+                generate_heightmap.run_if(resource_changed::<HeightmapConfig>()),
+            );
     }
 }
+
+#[derive(Component)]
+struct HeightmapMarker;
 
 fn setup_test_environment(
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut images: ResMut<Assets<Image>>,
 ) {
     const MAP_SIZE: u32 = 500;
 
@@ -70,21 +79,6 @@ fn setup_test_environment(
         ..Default::default()
     });
 
-    let heightmap = generator::generate(default());
-
-    commands.spawn((
-        PbrBundle {
-            mesh: meshes.add(shape::Plane::from_size(heightmap.config.size as f32).into()),
-            material: materials.add(StandardMaterial {
-                base_color_texture: Some(images.add(heightmap.into())),
-                unlit: false,
-                ..default()
-            }),
-            transform: Transform::from_xyz(0.0, 0.0, 1.5),
-            ..default()
-        },
-        Name::new("Heightmap texture"),
-    ));
     // ground plane
     // commands.spawn((
     //     PbrBundle {
@@ -167,4 +161,34 @@ impl From<Heightmap> for Mesh {
 
         mesh
     }
+}
+
+fn generate_heightmap(
+    mut commands: Commands,
+    config: Res<HeightmapConfig>,
+    q_existing_heightmap: Query<Entity, With<HeightmapMarker>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let heightmap = generator::generate(*config);
+
+    if let Ok(entity) = q_existing_heightmap.get_single() {
+        commands.entity(entity).despawn_recursive();
+    }
+
+    commands.spawn((
+        PbrBundle {
+            mesh: meshes.add(shape::Plane::from_size(heightmap.config.size as f32).into()),
+            material: materials.add(StandardMaterial {
+                base_color_texture: Some(images.add(heightmap.into())),
+                unlit: false,
+                ..default()
+            }),
+            transform: Transform::from_xyz(0.0, 0.0, 1.5),
+            ..default()
+        },
+        Name::new("Heightmap texture"),
+        HeightmapMarker,
+    ));
 }

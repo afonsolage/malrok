@@ -1,4 +1,8 @@
-#[derive(Debug, Clone, Copy)]
+use bevy::prelude::*;
+use bevy_inspector_egui::{prelude::ReflectInspectorOptions, InspectorOptions};
+
+#[derive(Resource, Reflect, InspectorOptions, Debug, Clone, Copy)]
+#[reflect(Resource, InspectorOptions)]
 pub struct HeightmapConfig {
     pub size: u16,
     pub octaves: u32,
@@ -12,10 +16,10 @@ impl Default for HeightmapConfig {
     fn default() -> Self {
         HeightmapConfig {
             size: 256,
-            octaves: 2,
-            persistence: 0.3,
-            frequency: 1.0,
-            lacunarity: 2.0,
+            octaves: 3,
+            persistence: 0.16,
+            frequency: 0.02,
+            lacunarity: 1.0,
             seed: 42,
         }
     }
