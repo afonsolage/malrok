@@ -1,11 +1,9 @@
-use bevy::{
-    prelude::*,
-    render::{mesh::Indices, render_resource::PrimitiveTopology},
-};
+use bevy::{prelude::*, render::render_resource::PrimitiveTopology};
 use libnoise::prelude::*;
 
 use self::heightmap::Heightmap;
 
+mod generator;
 mod heightmap;
 
 pub struct MapPlugin;
@@ -77,136 +75,66 @@ fn setup_test_environment(
 }
 
 fn generate_heightmap() -> Heightmap {
-    let mut heightmap = Heightmap::new(256, 256);
+    let mut heightmap = Heightmap::new(default());
 
     let generator = Source::simplex(42);
 
     for x in 0..256 {
         for z in 0..256 {
-            heightmap.set(x, z, (generator.sample([x as f64, z as f64])) as i16);
+            let sample = (generator.sample([x as f64, z as f64]) + 1.0) / 2.0;
+            let height = (sample * 10.0) as u8;
+            heightmap.set(x, z, height);
         }
     }
 
     heightmap
 }
 
-#[derive(Clone, Copy)]
-struct Tile {
-    pub x: u16,
-    pub z: u16,
-    pub heights: [u16; 4],
-}
+impl From<Heightmap> for Mesh {
+    fn from(value: Heightmap) -> Self {
+        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
 
-impl Tile {
-    fn new(x: u16, z: u16, generator: impl Generator2D) -> Tile {
-        Tile {
-            x,
-            z,
-            heights: Self::generate_height(x, z, generator),
+        let mut vertices = vec![];
+        for x in 0..255 {
+            for z in 0..255 {
+                let v0 = [x as f32, value.get(x, z) as f32, z as f32];
+                let v1 = [x as f32, value.get(x, z + 1) as f32, (z + 1) as f32];
+                let v2 = [(x + 1) as f32, value.get(x + 1, z) as f32, z as f32];
+                let v3 = [
+                    (x + 1) as f32,
+                    value.get(x + 1, z + 1) as f32,
+                    (z + 1) as f32,
+                ];
+                vertices.push(v0);
+                vertices.push(v1);
+                vertices.push(v2);
+                vertices.push(v3);
+            }
         }
-    }
 
-    fn v0(&self) -> Vec3 {
-        Vec3::new(self.x as f32, self.heights[0] as f32, self.z as f32)
-    }
+        let mut indices = vec![];
+        let mut index = 0;
+        for _ in &vertices {
+            indices.push(index);
+            indices.push(index + 1);
+            indices.push(index + 2);
 
-    fn v1(&self) -> Vec3 {
-        Vec3::new(self.x as f32, self.heights[1] as f32, (self.z + 1) as f32)
-    }
+            indices.push(index + 1);
+            indices.push(index + 3);
+            indices.push(index + 2);
 
-    fn v2(&self) -> Vec3 {
-        Vec3::new(
-            (self.x + 1) as f32,
-            self.heights[2] as f32,
-            (self.z + 1) as f32,
-        )
-    }
+            index += 4;
+        }
 
-    fn v3(&self) -> Vec3 {
-        Vec3::new(
-            (self.x + 1) as f32,
-            self.heights[3] as f32,
-            (self.z + 1) as f32,
-        )
-    }
+        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
+        mesh.set_indices(Some(bevy::render::mesh::Indices::U32(indices)));
 
-    fn generate_height(x: u16, z: u16, generator: impl Generator2D) -> [u16; 4] {
-        [
-            generator.sample([x as f64, z as f64]) as u16,
-            generator.sample([x as f64 + 1.0, z as f64]) as u16,
-            generator.sample([x as f64, z as f64 + 1.0]) as u16,
-            generator.sample([x as f64 + 1.0, z as f64 + 1.0]) as u16,
-        ]
-    }
-
-    fn append_vertices(&self, mut vertices: Vec<[f32; 3]>) -> Vec<[f32; 3]> {
-        vertices.push([self.x as f32, self.heights[0] as f32, self.z as f32]);
-        vertices.push([self.x as f32, self.heights[1] as f32, (self.z + 1) as f32]);
-        vertices.push([
-            (self.x + 1) as f32,
-            self.heights[2] as f32,
-            (self.z + 1) as f32,
-        ]);
-        vertices.push([(self.x + 1) as f32, self.heights[3] as f32, self.z as f32]);
-        vertices
-    }
-
-    fn append_indices(&self, (next_index, mut indices): (u32, Vec<u32>)) -> (u32, Vec<u32>) {
-        indices.push(next_index);
-        indices.push(next_index + 1);
-        indices.push(next_index + 2);
-
-        indices.push(next_index + 2);
-        indices.push(next_index + 3);
-        indices.push(next_index);
-
-        (next_index + 4, indices)
-    }
-
-    fn append_normals(&self, mut normals: Vec<[f32; 3]>) -> Vec<[f32; 3]> {
-        let n0 = (self.v3() - self.v0())
-            .cross(self.v1() - self.v0())
-            .normalize();
-        let n1 = (self.v0() - self.v1())
-            .cross(self.v2() - self.v1())
-            .normalize();
-        let n2 = (self.v1() - self.v2())
-            .cross(self.v3() - self.v2())
-            .normalize();
-        let n3 = (self.v2() - self.v3())
-            .cross(self.v0() - self.v3())
-            .normalize();
-
-        normals.push(n0.to_array());
-        normals.push(n1.to_array());
-        normals.push(n2.to_array());
-        normals.push(n3.to_array());
-
-        normals
+        mesh
     }
 }
 
 fn generate_terrain() -> Mesh {
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+    let heightmap = generate_heightmap();
 
-    let _heightmap = generate_heightmap();
-    const MAP_SIZE: u16 = 128;
-
-    let generator = Source::simplex(42);
-
-    let tiles = (0..MAP_SIZE * MAP_SIZE)
-        .map(|i| Tile::new(i / MAP_SIZE, i % MAP_SIZE, generator.clone()))
-        .collect::<Vec<_>>();
-
-    let vertices = tiles.iter().fold(Vec::new(), |v, t| t.append_vertices(v));
-    let (_, indices) = tiles
-        .iter()
-        .fold((0, Vec::new()), |p, t| t.append_indices(p));
-    let normals = tiles.iter().fold(Vec::new(), |v, t| t.append_normals(v));
-
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
-    mesh.set_indices(Some(Indices::U32(indices)));
-
-    mesh
+    heightmap.into()
 }

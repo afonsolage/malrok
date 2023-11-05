@@ -1,42 +1,81 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
+pub struct HeightmapConfig {
+    pub size: u16,
+    pub octaves: u32,
+    pub persistence: f64,
+    pub frequency: f64,
+    pub lacunarity: f64,
+    pub seed: u64,
+}
+
+impl Default for HeightmapConfig {
+    fn default() -> Self {
+        HeightmapConfig {
+            size: 256,
+            octaves: 2,
+            persistence: 0.3,
+            frequency: 1.0,
+            lacunarity: 2.0,
+            seed: 42,
+        }
+    }
+}
+
+impl HeightmapConfig {
+    #[inline]
+    fn buffer_size(&self) -> usize {
+        self.size as usize * self.size as usize
+    }
+
+    #[inline]
+    fn index(&self, x: u16, z: u16) -> usize {
+        (x * self.size + z) as usize
+    }
+
+    #[inline]
+    fn position(&self, index: usize) -> (u16, u16) {
+        (index as u16 / self.size, index as u16 % self.size)
+    }
+}
+
+#[derive(Default, Debug, Clone)]
 pub struct Heightmap {
-    width: u16,
-    depth: u16,
-    buffer: Vec<i16>,
+    pub config: HeightmapConfig,
+    buffer: Vec<u8>,
 }
 
 impl Heightmap {
-    pub fn new(width: u16, depth: u16) -> Self {
+    pub fn new(config: HeightmapConfig) -> Self {
         Heightmap {
-            width,
-            depth,
-            buffer: vec![0; width as usize * depth as usize],
+            config,
+            buffer: vec![0; config.buffer_size()],
         }
     }
 
+    pub fn get(&self, x: u16, z: u16) -> u8 {
+        self.buffer[self.config.index(x, z)]
+    }
+
+    pub fn set(&mut self, x: u16, z: u16, value: u8) {
+        let index = self.config.index(x, z);
+        self.buffer[index] = value;
+    }
+
     pub fn index(&self, x: u16, z: u16) -> usize {
-        x as usize * self.depth as usize + z as usize
+        self.config.index(x, z)
     }
 
     pub fn position(&self, index: usize) -> (u16, u16) {
-        (
-            (index / self.depth as usize) as u16,
-            (index % self.depth as usize) as u16,
-        )
+        self.config.position(index)
     }
 
-    pub fn get(&self, x: u16, z: u16) -> i16 {
-        self.buffer[self.index(x, z)]
-    }
-
-    pub fn set(&mut self, x: u16, z: u16, value: i16) {
-        let index = self.index(x, z);
-        self.buffer[index] = value;
+    pub fn len(&self) -> usize {
+        self.buffer.len()
     }
 }
 
 impl std::ops::Index<usize> for Heightmap {
-    type Output = i16;
+    type Output = u8;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.buffer[index]
@@ -49,15 +88,29 @@ impl std::ops::IndexMut<usize> for Heightmap {
     }
 }
 
+impl IntoIterator for Heightmap {
+    type Item = u8;
+
+    type IntoIter = std::vec::IntoIter<u8>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.buffer.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a Heightmap {
+    type Item = &'a u8;
+
+    type IntoIter = std::slice::Iter<'a, u8>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.buffer.iter()
+    }
+}
+
 impl std::fmt::Display for Heightmap {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Heightmap [{},{}]({})",
-            self.width,
-            self.depth,
-            self.buffer.len()
-        )
+        write!(f, "Heightmap [{:?}]({})", self.config, self.buffer.len())
     }
 }
 
@@ -66,65 +119,55 @@ mod tests {
     use super::*;
 
     #[test]
-    fn new_height_map() {
-        let width = 3;
-        let depth = 4;
-        let heightmap = Heightmap::new(width, depth);
+    fn test_new_heightmap() {
+        let config = HeightmapConfig {
+            size: 128,
+            ..Default::default()
+        };
+        let heightmap = Heightmap::new(config);
 
-        assert_eq!(heightmap.width, width);
-        assert_eq!(heightmap.depth, depth);
-
-        for value in &heightmap.buffer {
-            assert_eq!(*value, 0);
-        }
+        assert_eq!(heightmap.buffer.len(), config.buffer_size());
     }
 
     #[test]
-    fn index_and_position() {
-        let heightmap = Heightmap::new(3, 3);
+    fn test_get_set_height() {
+        let config = HeightmapConfig::default();
+        let mut heightmap = Heightmap::new(config);
 
-        let index = heightmap.index(1, 2);
-        let position = heightmap.position(index);
+        let x = 10;
+        let z = 20;
+        let value = 42;
 
-        assert_eq!(index, 5);
-        assert_eq!(position, (1, 2));
+        heightmap.set(x, z, value);
+        assert_eq!(heightmap.get(x, z), value);
     }
 
     #[test]
-    fn get_and_set() {
-        let mut heightmap = Heightmap::new(3, 3);
+    fn test_index_height() {
+        let config = HeightmapConfig::default();
+        let mut heightmap = Heightmap::new(config);
 
-        heightmap.set(1, 2, 42);
-        let value = heightmap.get(1, 2);
+        let index = 42;
+        let value = 55;
 
-        assert_eq!(value, 42);
+        heightmap[index] = value;
+        assert_eq!(heightmap[index], value);
     }
 
     #[test]
-    fn index_operator() {
-        let mut heightmap = Heightmap::new(3, 3);
+    fn test_position_index_conversion() {
+        let config = HeightmapConfig {
+            size: 128,
+            ..Default::default()
+        };
+        let heightmap = Heightmap::new(config);
 
-        heightmap[5] = 42;
-        let value = heightmap[5];
+        let x = 10;
+        let z = 20;
+        let index = heightmap.config.index(x, z);
+        let (x_result, z_result) = heightmap.config.position(index);
 
-        assert_eq!(value, 42);
-    }
-
-    #[test]
-    fn cache_friendly() {
-        let mut heightmap = Heightmap::new(10, 10);
-
-        for i in 0..100 {
-            heightmap[i as usize] = i;
-        }
-
-        assert_eq!(heightmap.get(0, 0), 0);
-        assert_eq!(heightmap.get(0, 1), 1);
-        assert_eq!(heightmap.get(0, 2), 2);
-        assert_eq!(heightmap.get(0, 3), 3);
-        assert_eq!(heightmap.get(1, 0), 10);
-        assert_eq!(heightmap.get(1, 1), 11);
-        assert_eq!(heightmap.get(1, 2), 12);
-        assert_eq!(heightmap.get(1, 3), 13);
+        assert_eq!(x_result, x);
+        assert_eq!(z_result, z);
     }
 }

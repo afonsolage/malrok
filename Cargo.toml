@@ -14,5 +14,8 @@ bevy-inspector-egui = "0.20.0"
 leafwing-input-manager = "0.10"
 libnoise = "0.1"
 
+[profile.dev]
+opt-level = 1
+
 [profile.dev.package."*"]
 opt-level = 3
