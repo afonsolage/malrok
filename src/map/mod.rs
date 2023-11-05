@@ -1,5 +1,13 @@
-use bevy::{prelude::*, render::render_resource::PrimitiveTopology};
-use libnoise::prelude::*;
+use bevy::{
+    prelude::*,
+    render::{
+        render_resource::{
+            Extent3d, PrimitiveTopology, TextureDescriptor, TextureDimension, TextureFormat,
+            TextureUsages,
+        },
+        texture::ImageSampler,
+    },
+};
 
 use self::heightmap::Heightmap;
 
@@ -18,6 +26,7 @@ fn setup_test_environment(
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut images: ResMut<Assets<Image>>,
 ) {
     const MAP_SIZE: u32 = 500;
 
@@ -61,33 +70,60 @@ fn setup_test_environment(
         ..Default::default()
     });
 
-    let terrain_mesh = generate_terrain();
+    let heightmap = generator::generate(default());
 
-    // ground plane
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(terrain_mesh),
-            material: materials.add(Color::LIME_GREEN.into()),
+            mesh: meshes.add(shape::Plane::from_size(heightmap.config.size as f32).into()),
+            material: materials.add(StandardMaterial {
+                base_color_texture: Some(images.add(heightmap.into())),
+                unlit: false,
+                ..default()
+            }),
+            transform: Transform::from_xyz(0.0, 0.0, 1.5),
             ..default()
         },
-        Name::new("Terrain"),
+        Name::new("Heightmap texture"),
     ));
+    // ground plane
+    // commands.spawn((
+    //     PbrBundle {
+    //         mesh: meshes.add(terrain_mesh.into()),
+    //         material: materials.add(Color::LIME_GREEN.into()),
+    //         ..default()
+    //     },
+    //     Name::new("Terrain"),
+    // ));
 }
 
-fn generate_heightmap() -> Heightmap {
-    let mut heightmap = Heightmap::new(default());
+impl From<Heightmap> for Image {
+    fn from(heightmap: Heightmap) -> Self {
+        let size = heightmap.config.size as u32;
+        let data = heightmap
+            .into_iter()
+            .flat_map(|h| [h, h, h, 255])
+            .collect::<Vec<_>>();
 
-    let generator = Source::simplex(42);
-
-    for x in 0..256 {
-        for z in 0..256 {
-            let sample = (generator.sample([x as f64, z as f64]) + 1.0) / 2.0;
-            let height = (sample * 10.0) as u8;
-            heightmap.set(x, z, height);
+        Image {
+            texture_descriptor: TextureDescriptor {
+                label: None,
+                size: Extent3d {
+                    width: size,
+                    height: size,
+                    ..default()
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Rgba8UnormSrgb,
+                usage: TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            },
+            data,
+            sampler_descriptor: ImageSampler::nearest(),
+            ..default()
         }
     }
-
-    heightmap
 }
 
 impl From<Heightmap> for Mesh {
@@ -131,10 +167,4 @@ impl From<Heightmap> for Mesh {
 
         mesh
     }
-}
-
-fn generate_terrain() -> Mesh {
-    let heightmap = generate_heightmap();
-
-    heightmap.into()
 }
