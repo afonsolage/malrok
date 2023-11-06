@@ -2,8 +2,7 @@ use bevy::{
     prelude::*,
     render::{
         render_resource::{
-            Extent3d, PrimitiveTopology, TextureDescriptor, TextureDimension, TextureFormat,
-            TextureUsages,
+            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
         },
         texture::{ImageSampler, ImageSamplerDescriptor},
     },
@@ -14,6 +13,7 @@ use self::heightmap::{Heightmap, HeightmapConfig};
 
 mod generator;
 mod heightmap;
+mod mesher;
 
 pub struct MapPlugin;
 
@@ -78,16 +78,6 @@ fn setup_test_environment(
             .with_rotation(Quat::from_rotation_x(-std::f32::consts::PI / 4.0)),
         ..Default::default()
     });
-
-    // ground plane
-    // commands.spawn((
-    //     PbrBundle {
-    //         mesh: meshes.add(terrain_mesh.into()),
-    //         material: materials.add(Color::LIME_GREEN.into()),
-    //         ..default()
-    //     },
-    //     Name::new("Terrain"),
-    // ));
 }
 
 impl From<Heightmap> for Image {
@@ -120,49 +110,6 @@ impl From<Heightmap> for Image {
     }
 }
 
-impl From<Heightmap> for Mesh {
-    fn from(value: Heightmap) -> Self {
-        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-
-        let mut vertices = vec![];
-        for x in 0..255 {
-            for z in 0..255 {
-                let v0 = [x as f32, value.get(x, z) as f32, z as f32];
-                let v1 = [x as f32, value.get(x, z + 1) as f32, (z + 1) as f32];
-                let v2 = [(x + 1) as f32, value.get(x + 1, z) as f32, z as f32];
-                let v3 = [
-                    (x + 1) as f32,
-                    value.get(x + 1, z + 1) as f32,
-                    (z + 1) as f32,
-                ];
-                vertices.push(v0);
-                vertices.push(v1);
-                vertices.push(v2);
-                vertices.push(v3);
-            }
-        }
-
-        let mut indices = vec![];
-        let mut index = 0;
-        for _ in &vertices {
-            indices.push(index);
-            indices.push(index + 1);
-            indices.push(index + 2);
-
-            indices.push(index + 1);
-            indices.push(index + 3);
-            indices.push(index + 2);
-
-            index += 4;
-        }
-
-        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
-        mesh.set_indices(Some(bevy::render::mesh::Indices::U32(indices)));
-
-        mesh
-    }
-}
-
 fn generate_heightmap(
     mut commands: Commands,
     config: Res<HeightmapConfig>,
@@ -181,14 +128,23 @@ fn generate_heightmap(
         PbrBundle {
             mesh: meshes.add(shape::Plane::from_size(heightmap.config.size as f32).into()),
             material: materials.add(StandardMaterial {
-                base_color_texture: Some(images.add(heightmap.into())),
+                base_color_texture: Some(images.add(heightmap.clone().into())),
                 unlit: false,
                 ..default()
             }),
-            transform: Transform::from_xyz(0.0, 0.0, 1.5),
+            transform: Transform::from_xyz(0.0, -0.1, 1.5),
             ..default()
         },
         Name::new("Heightmap texture"),
         HeightmapMarker,
+    ));
+
+    commands.spawn((
+        PbrBundle {
+            mesh: meshes.add(heightmap.into()),
+            material: materials.add(Color::LIME_GREEN.into()),
+            ..default()
+        },
+        Name::new("Terrain"),
     ));
 }
