@@ -5,7 +5,7 @@ use bevy::{
             Extent3d, PrimitiveTopology, TextureDescriptor, TextureDimension, TextureFormat,
             TextureUsages,
         },
-        texture::ImageSampler,
+        texture::{ImageSampler, ImageSamplerDescriptor},
     },
 };
 use bevy_inspector_egui::quick::ResourceInspectorPlugin;
@@ -114,7 +114,7 @@ impl From<Heightmap> for Image {
                 view_formats: &[],
             },
             data,
-            sampler_descriptor: ImageSampler::nearest(),
+            sampler: ImageSampler::Descriptor(ImageSamplerDescriptor::nearest()),
             ..default()
         }
     }

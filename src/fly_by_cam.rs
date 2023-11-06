@@ -147,7 +147,7 @@ fn rotate_camera(
 ) {
     if let Ok(mut transform) = q.get_single_mut() {
         let mut delta = Vec2::ZERO;
-        for ev in motion_evt.iter() {
+        for ev in motion_evt.read() {
             delta += ev.delta;
         }
 

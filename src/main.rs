@@ -15,13 +15,16 @@ mod player;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(RenderPlugin {
-            wgpu_settings: WgpuSettings {
-                backends: Some(Backends::VULKAN),
-                features: WgpuFeatures::POLYGON_MODE_LINE,
-                ..default()
-            },
-        }))
+        .add_plugins(
+            DefaultPlugins.set(RenderPlugin {
+                render_creation: WgpuSettings {
+                    backends: Some(Backends::VULKAN),
+                    features: WgpuFeatures::POLYGON_MODE_LINE,
+                    ..default()
+                }
+                .into(),
+            }),
+        )
         .add_plugins(WorldInspectorPlugin::new())
         .add_plugins((
             fly_by_cam::FlyByCameraPlugin,
