@@ -120,7 +120,7 @@ fn generate_heightmap(
 ) {
     let heightmap = generator::generate(*config);
 
-    if let Ok(entity) = q_existing_heightmap.get_single() {
+    for entity in &q_existing_heightmap {
         commands.entity(entity).despawn_recursive();
     }
 
@@ -146,5 +146,6 @@ fn generate_heightmap(
             ..default()
         },
         Name::new("Terrain"),
+        HeightmapMarker,
     ));
 }

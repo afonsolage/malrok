@@ -25,6 +25,6 @@ fn generate_terrain(heightmap: &mut Heightmap) {
     for i in 0..heightmap.len() {
         let (x, z) = heightmap.position(i);
         let height = (generator.sample([x as f64, z as f64]) + 1.0) / 2.0;
-        heightmap[i] = (height * 255.0) as u8;
+        heightmap[i] = (height * 10.0) as u8;
     }
 }
