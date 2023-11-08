@@ -21,9 +21,14 @@ impl From<Heightmap> for Mesh {
 #[inline]
 fn calc_vertice_at(x: u16, z: u16, heightmap: &Heightmap) -> [f32; 3] {
     let height = heightmap.get(x, z);
-    [x as f32, height as f32, z as f32]
+    [
+        x as f32 * heightmap.config.size_scale,
+        height as f32,
+        z as f32 * heightmap.config.size_scale,
+    ]
 }
 
+// TODO: Change from plane (4 vertices) to triangles (3 vertices)?
 fn calc_vertices(heightmap: &Heightmap) -> Vec<[f32; 3]> {
     let mut vertices = vec![];
     let size = heightmap.config.size - 1;
