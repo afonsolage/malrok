@@ -5,6 +5,7 @@ use bevy_inspector_egui::{prelude::ReflectInspectorOptions, InspectorOptions};
 #[reflect(Resource, InspectorOptions)]
 pub struct HeightmapConfig {
     pub size: u16,
+    pub height_scale: u8,
     pub octaves: u32,
     pub persistence: f64,
     pub frequency: f64,
@@ -16,6 +17,7 @@ impl Default for HeightmapConfig {
     fn default() -> Self {
         HeightmapConfig {
             size: 256,
+            height_scale: 10,
             octaves: 3,
             persistence: 0.16,
             frequency: 0.02,
