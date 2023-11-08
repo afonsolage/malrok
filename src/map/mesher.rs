@@ -7,8 +7,8 @@ impl From<Heightmap> for Mesh {
         let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
 
         let vertices = calc_vertices(&heightmap);
-        let indices = calc_indices(&vertices);
         let normals = calc_normals(&vertices);
+        let indices = calc_indices(vertices.len());
 
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
         mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
@@ -16,21 +16,6 @@ impl From<Heightmap> for Mesh {
 
         mesh
     }
-}
-
-fn calc_indices(vertices: &Vec<[f32; 3]>) -> Vec<u32> {
-    let mut indices = vec![];
-    for index in (0..vertices.len()).step_by(4) {
-        let index = index as u32;
-        indices.push(index);
-        indices.push(index + 1);
-        indices.push(index + 2);
-
-        indices.push(index + 1);
-        indices.push(index + 3);
-        indices.push(index + 2);
-    }
-    indices
 }
 
 #[inline]
@@ -46,8 +31,8 @@ fn calc_vertices(heightmap: &Heightmap) -> Vec<[f32; 3]> {
         for z in 0..size {
             let v0 = calc_vertice_at(x, z, heightmap);
             let v1 = calc_vertice_at(x, z + 1, heightmap);
-            let v2 = calc_vertice_at(x + 1, z, heightmap);
-            let v3 = calc_vertice_at(x + 1, z + 1, heightmap);
+            let v2 = calc_vertice_at(x + 1, z + 1, heightmap);
+            let v3 = calc_vertice_at(x + 1, z, heightmap);
             vertices.push(v0);
             vertices.push(v1);
             vertices.push(v2);
@@ -65,9 +50,27 @@ fn calc_normals(vertices: &[[f32; 3]]) -> Vec<[f32; 3]> {
             let v1: Vec3 = chunk[1].into();
             let v3: Vec3 = chunk[3].into();
 
-            let normal = ((v3 - v0).cross(v1 - v0)).normalize().into();
+            let normal = (v1 - v0).cross(v3 - v0).normalize().into();
 
-            vec![normal; 4]
+            [normal; 4]
+        })
+        .collect()
+}
+
+fn calc_indices(vertices_count: usize) -> Vec<u32> {
+    (0..vertices_count as u32)
+        .step_by(4)
+        .flat_map(|index| {
+            [
+                // first triangle
+                index,
+                index + 1,
+                index + 2,
+                // second triangle
+                index,
+                index + 2,
+                index + 3,
+            ]
         })
         .collect()
 }
