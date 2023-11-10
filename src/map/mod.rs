@@ -13,6 +13,7 @@ use self::heightmap::{Heightmap, HeightmapConfig};
 
 mod generator;
 mod heightmap;
+mod layered_heightmap;
 mod mesher;
 
 pub struct MapPlugin;

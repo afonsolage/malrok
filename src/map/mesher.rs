@@ -28,7 +28,6 @@ fn calc_vertice_at(x: u16, z: u16, heightmap: &Heightmap) -> [f32; 3] {
     ]
 }
 
-// TODO: Change from plane (4 vertices) to triangles (3 vertices)?
 fn calc_vertices(heightmap: &Heightmap) -> Vec<[f32; 3]> {
     let mut vertices = vec![];
     let size = heightmap.config.size - 1;
