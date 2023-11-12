@@ -86,7 +86,11 @@ impl From<Heightmap> for Image {
         let size = heightmap.config.size as u32;
         let data = heightmap
             .into_iter()
-            .flat_map(|h| [h, h, h, 255])
+            .flat_map(|h| {
+                // Convert from [0,1] to [0,255]
+                let c = (h * 255.0) as u8;
+                [c, c, c, 255]
+            })
             .collect::<Vec<_>>();
 
         Image {
