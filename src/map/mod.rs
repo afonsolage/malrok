@@ -7,9 +7,11 @@ use bevy::{
         texture::{ImageSampler, ImageSamplerDescriptor},
     },
 };
-use bevy_inspector_egui::quick::ResourceInspectorPlugin;
+use bevy_inspector_egui::{
+    prelude::ReflectInspectorOptions, quick::ResourceInspectorPlugin, InspectorOptions,
+};
 
-use self::heightmap::{Heightmap, HeightmapConfig};
+use self::heightmap::{Heightmap, HeightmapSettings};
 
 mod generator;
 mod heightmap;
@@ -21,14 +23,20 @@ pub struct MapPlugin;
 impl Plugin for MapPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_test_environment)
-            .init_resource::<HeightmapConfig>()
-            .add_plugins(ResourceInspectorPlugin::<HeightmapConfig>::default())
+            .init_resource::<HeightmapLayers>()
+            .add_plugins(ResourceInspectorPlugin::<HeightmapLayers>::default())
+            .register_type::<HeightmapSettings>()
+            .register_type::<Heightmap>()
             .add_systems(
                 Update,
-                generate_heightmap.run_if(resource_changed::<HeightmapConfig>()),
+                generate_heightmap.run_if(resource_changed::<HeightmapLayers>()),
             );
     }
 }
+
+#[derive(Resource, Default, Reflect, InspectorOptions)]
+#[reflect(Resource, InspectorOptions, Default)]
+struct HeightmapLayers(pub Vec<Heightmap>);
 
 #[derive(Component)]
 struct HeightmapMarker;
@@ -81,9 +89,16 @@ fn setup_test_environment(
     });
 }
 
-impl From<Heightmap> for Image {
-    fn from(heightmap: Heightmap) -> Self {
-        let size = heightmap.config.size as u32;
+impl From<&mut Heightmap> for Image {
+    fn from(value: &mut Heightmap) -> Self {
+        (&*value).into()
+    }
+}
+
+impl From<&Heightmap> for Image {
+    fn from(heightmap: &Heightmap) -> Self {
+        let width = heightmap.width as u32;
+        let depth = heightmap.depth as u32;
         let data = heightmap
             .into_iter()
             .flat_map(|h| {
@@ -97,8 +112,8 @@ impl From<Heightmap> for Image {
             texture_descriptor: TextureDescriptor {
                 label: None,
                 size: Extent3d {
-                    width: size,
-                    height: size,
+                    width,
+                    height: depth,
                     ..default()
                 },
                 mip_level_count: 1,
@@ -117,23 +132,37 @@ impl From<Heightmap> for Image {
 
 fn generate_heightmap(
     mut commands: Commands,
-    config: Res<HeightmapConfig>,
     q_existing_heightmap: Query<Entity, With<HeightmapMarker>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
+    mut layers: ResMut<HeightmapLayers>,
 ) {
-    let heightmap = generator::generate(*config);
-
+    // Clear existing heightmaps entities
     for entity in &q_existing_heightmap {
         commands.entity(entity).despawn_recursive();
     }
 
+    for heightmap in &mut layers.0 {
+        heightmap.clear();
+        generator::generate_terrain(heightmap);
+        heightmap.image = images.add(heightmap.into());
+    }
+
+    // Prevent change detection from looping over and over again
+    layers.bypass_change_detection();
+
+    let Some(heightmap) = layers.0.first() else {
+        return;
+    };
+
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(shape::Plane::from_size(heightmap.config.size as f32).into()),
+            mesh: meshes.add(
+                shape::Quad::new(Vec2::new(heightmap.width as f32, heightmap.depth as f32)).into(),
+            ),
             material: materials.add(StandardMaterial {
-                base_color_texture: Some(images.add(heightmap.clone().into())),
+                base_color_texture: Some(heightmap.image.clone()),
                 unlit: false,
                 ..default()
             }),
@@ -146,7 +175,7 @@ fn generate_heightmap(
 
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(heightmap.into()),
+            mesh: meshes.add(heightmap.clone().into()),
             material: materials.add(Color::LIME_GREEN.into()),
             ..default()
         },

@@ -1,5 +1,72 @@
 use bevy::prelude::*;
 use bevy_inspector_egui::{prelude::ReflectInspectorOptions, InspectorOptions};
+
+#[derive(Resource, Debug, InspectorOptions, Reflect, Clone, Copy)]
+#[reflect(Resource, Default, Debug)]
+pub struct HeightmapSettings {
+    pub width: u16,
+    pub depth: u16,
+    pub seed: u64,
+    // Numbers of noise levels to use
+    pub octaves: u32,
+    // Increase of frequency in each octave, must be greater than 1
+    pub lacunarity: f64,
+    // Decrease of amplitude in each octave, must be in range [0, 1]
+    pub persistence: f64,
+    // Initial frequency
+    pub frequency: f64,
+}
+
+impl HeightmapSettings {
+    pub fn new(width: u16, depth: u16) -> Self {
+        Self {
+            width,
+            depth,
+            ..Default::default()
+        }
+    }
+
+    pub fn seed(self, seed: u64) -> Self {
+        Self { seed, ..self }
+    }
+
+    pub fn fbm(self, frequency: f64, octaves: u32, lacunarity: f64, persistence: f64) -> Self {
+        Self {
+            frequency,
+            octaves,
+            lacunarity,
+            persistence,
+            ..self
+        }
+    }
+
+    pub fn build(&self) -> Heightmap {
+        Heightmap::new(
+            self.width,
+            self.depth,
+            self.seed,
+            self.octaves,
+            self.lacunarity,
+            self.persistence,
+            self.frequency,
+        )
+    }
+}
+
+impl Default for HeightmapSettings {
+    fn default() -> Self {
+        Self {
+            width: 256,
+            depth: 256,
+            seed: 42,
+            octaves: 5,
+            persistence: 0.5,
+            frequency: 1.0,
+            lacunarity: 2.0,
+        }
+    }
+}
+
 //
 // A |
 // M |           ____
@@ -11,10 +78,12 @@ use bevy_inspector_egui::{prelude::ReflectInspectorOptions, InspectorOptions};
 // D +-----------------------
 // E         FREQUENCY
 //
-#[derive(Resource, Reflect, InspectorOptions, Debug, Clone, Copy)]
-#[reflect(Resource, InspectorOptions)]
-pub struct HeightmapConfig {
-    pub size: u16,
+#[derive(Resource, Reflect, InspectorOptions, Debug, Clone)]
+#[reflect(Resource, Default, InspectorOptions)]
+pub struct Heightmap {
+    pub width: u16,
+    pub depth: u16,
+    pub seed: u64,
     // Numbers of noise levels to use
     pub octaves: u32,
     // Increase of frequency in each octave, must be greater than 1
@@ -23,72 +92,77 @@ pub struct HeightmapConfig {
     pub persistence: f64,
     // Initial frequency
     pub frequency: f64,
-    pub seed: u64,
-}
-
-impl Default for HeightmapConfig {
-    fn default() -> Self {
-        HeightmapConfig {
-            size: 256,
-            octaves: 6,
-            persistence: 0.5,
-            frequency: 1.0,
-            lacunarity: 2.0,
-            seed: 42,
-        }
-    }
-}
-
-impl HeightmapConfig {
-    #[inline]
-    fn buffer_size(&self) -> usize {
-        self.size as usize * self.size as usize
-    }
-
-    #[inline]
-    fn index(&self, x: u16, z: u16) -> usize {
-        x as usize * self.size as usize + z as usize
-    }
-
-    #[inline]
-    fn position(&self, index: usize) -> [u16; 2] {
-        [index as u16 / self.size, index as u16 % self.size]
-    }
-}
-
-#[derive(Default, Debug, Clone)]
-pub struct Heightmap {
-    pub config: HeightmapConfig,
+    #[reflect(ignore)]
     buffer: Vec<f32>,
+    pub image: Handle<Image>,
 }
 
 impl Heightmap {
-    pub fn new(config: HeightmapConfig) -> Self {
+    pub fn new(
+        width: u16,
+        depth: u16,
+        seed: u64,
+        octaves: u32,
+        lacunarity: f64,
+        persistence: f64,
+        frequency: f64,
+    ) -> Self {
         Heightmap {
-            config,
-            buffer: vec![0.0; config.buffer_size()],
+            width,
+            depth,
+            seed,
+            octaves,
+            lacunarity,
+            persistence,
+            frequency,
+            buffer: vec![0.0; width as usize * depth as usize],
+            ..Default::default()
         }
     }
 
+    pub fn buffer_size(&self) -> usize {
+        self.buffer.len()
+    }
+
+    #[inline]
+    pub fn index(&self, x: u16, z: u16) -> usize {
+        x as usize * self.depth as usize + z as usize
+    }
+
+    #[inline]
+    pub fn position(&self, index: usize) -> [u16; 2] {
+        [index as u16 / self.depth, index as u16 % self.depth]
+    }
+
     pub fn get(&self, x: u16, z: u16) -> f32 {
-        self.buffer[self.config.index(x, z)]
+        self.buffer[self.index(x, z)]
     }
 
     pub fn set(&mut self, x: u16, z: u16, value: f32) {
-        let index = self.config.index(x, z);
+        let index = self.index(x, z);
         self.buffer[index] = value;
     }
 
-    pub fn index(&self, x: u16, z: u16) -> usize {
-        self.config.index(x, z)
+    pub fn clear(&mut self) {
+        self.buffer.fill(0.0);
     }
+}
 
-    pub fn position(&self, index: usize) -> [u16; 2] {
-        self.config.position(index)
-    }
-
-    pub fn len(&self) -> usize {
-        self.buffer.len()
+impl Default for Heightmap {
+    fn default() -> Self {
+        let width = 256;
+        let depth = 256;
+        Self {
+            buffer: vec![0.0; width as usize * depth as usize],
+            width,
+            depth,
+            seed: 42,
+            octaves: 5,
+            persistence: 0.5,
+            frequency: 1.0,
+            lacunarity: 2.0,
+            image: Default::default(),
+        }
     }
 }
 
@@ -123,11 +197,5 @@ impl<'a> IntoIterator for &'a Heightmap {
 
     fn into_iter(self) -> Self::IntoIter {
         self.buffer.iter()
-    }
-}
-
-impl std::fmt::Display for Heightmap {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Heightmap [{:?}]({})", self.config, self.buffer.len())
     }
 }

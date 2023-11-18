@@ -21,15 +21,14 @@ impl From<Heightmap> for Mesh {
 #[inline]
 fn calc_vertice_at(x: u16, z: u16, heightmap: &Heightmap) -> [f32; 3] {
     let height = heightmap.get(x, z);
-    let scale = heightmap.config.size as f32 / 2.0;
+    let scale = 128.0;
     [x as f32, height * scale, z as f32]
 }
 
 fn calc_vertices(heightmap: &Heightmap) -> Vec<[f32; 3]> {
     let mut vertices = vec![];
-    let size = heightmap.config.size - 1;
-    for x in 0..size {
-        for z in 0..size {
+    for x in 0..heightmap.width - 1 {
+        for z in 0..heightmap.depth - 1 {
             let v0 = calc_vertice_at(x, z, heightmap);
             let v1 = calc_vertice_at(x, z + 1, heightmap);
             let v2 = calc_vertice_at(x + 1, z + 1, heightmap);

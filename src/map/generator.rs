@@ -1,31 +1,21 @@
 use libnoise::{Generator, Source};
 
-use super::heightmap::{Heightmap, HeightmapConfig};
+use super::heightmap::Heightmap;
 
-pub fn generate(config: HeightmapConfig) -> Heightmap {
-    let mut heightmap = Heightmap::new(config);
+pub fn generate_terrain(heightmap: &mut Heightmap) {
+    let generator = Source::simplex(heightmap.seed).fbm(
+        heightmap.octaves,
+        heightmap.frequency,
+        heightmap.lacunarity,
+        heightmap.persistence,
+    );
 
-    generate_terrain(&mut heightmap);
-
-    heightmap
-}
-
-fn generate_terrain(heightmap: &mut Heightmap) {
-    let HeightmapConfig {
-        octaves,
-        frequency,
-        lacunarity,
-        persistence,
-        seed,
-        ..
-    } = heightmap.config;
-
-    let generator = Source::simplex(seed).fbm(octaves, frequency, lacunarity, persistence);
-
-    for i in 0..heightmap.len() {
-        let point = heightmap
-            .position(i)
-            .map(|v| v as f64 / heightmap.config.size as f64);
+    for i in 0..heightmap.buffer_size() {
+        let [x, z] = heightmap.position(i);
+        let point = [
+            x as f64 / heightmap.width as f64,
+            z as f64 / heightmap.depth as f64,
+        ];
         let height = (generator.sample(point) + 1.0) / 2.0;
         heightmap[i] = height as f32;
     }
