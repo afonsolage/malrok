@@ -25,32 +25,6 @@ impl HeightmapSettings {
             ..Default::default()
         }
     }
-
-    pub fn seed(self, seed: u64) -> Self {
-        Self { seed, ..self }
-    }
-
-    pub fn fbm(self, frequency: f64, octaves: u32, lacunarity: f64, persistence: f64) -> Self {
-        Self {
-            frequency,
-            octaves,
-            lacunarity,
-            persistence,
-            ..self
-        }
-    }
-
-    pub fn build(&self) -> Heightmap {
-        Heightmap::new(
-            self.width,
-            self.depth,
-            self.seed,
-            self.octaves,
-            self.lacunarity,
-            self.persistence,
-            self.frequency,
-        )
-    }
 }
 
 impl Default for HeightmapSettings {
@@ -83,40 +57,18 @@ impl Default for HeightmapSettings {
 pub struct Heightmap {
     pub width: u16,
     pub depth: u16,
-    pub seed: u64,
-    // Numbers of noise levels to use
-    pub octaves: u32,
-    // Increase of frequency in each octave, must be greater than 1
-    pub lacunarity: f64,
-    // Decrease of amplitude in each octave, must be in range [0, 1]
-    pub persistence: f64,
-    // Initial frequency
-    pub frequency: f64,
     #[reflect(ignore)]
     buffer: Vec<f32>,
     pub image: Handle<Image>,
 }
 
 impl Heightmap {
-    pub fn new(
-        width: u16,
-        depth: u16,
-        seed: u64,
-        octaves: u32,
-        lacunarity: f64,
-        persistence: f64,
-        frequency: f64,
-    ) -> Self {
+    pub fn new(width: u16, depth: u16) -> Self {
         Heightmap {
             width,
             depth,
-            seed,
-            octaves,
-            lacunarity,
-            persistence,
-            frequency,
             buffer: vec![0.0; width as usize * depth as usize],
-            ..Default::default()
+            image: default(),
         }
     }
 
@@ -156,12 +108,7 @@ impl Default for Heightmap {
             buffer: vec![0.0; width as usize * depth as usize],
             width,
             depth,
-            seed: 42,
-            octaves: 5,
-            persistence: 0.5,
-            frequency: 1.0,
-            lacunarity: 2.0,
-            image: Default::default(),
+            image: default(),
         }
     }
 }

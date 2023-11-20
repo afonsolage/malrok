@@ -25,18 +25,24 @@ impl Plugin for MapPlugin {
         app.add_systems(Startup, setup_test_environment)
             .init_resource::<HeightmapLayers>()
             .add_plugins(ResourceInspectorPlugin::<HeightmapLayers>::default())
+            .init_resource::<MapSettings>()
+            .add_plugins(ResourceInspectorPlugin::<MapSettings>::default())
             .register_type::<HeightmapSettings>()
             .register_type::<Heightmap>()
             .add_systems(
                 Update,
-                generate_heightmap.run_if(resource_changed::<HeightmapLayers>()),
+                generate_heightmap.run_if(resource_changed::<MapSettings>()),
             );
     }
 }
 
-#[derive(Resource, Default, Reflect, InspectorOptions)]
+#[derive(Resource, Default, Reflect, InspectorOptions, Deref, DerefMut)]
 #[reflect(Resource, InspectorOptions, Default)]
 struct HeightmapLayers(pub Vec<Heightmap>);
+
+#[derive(Resource, Default, Reflect, InspectorOptions, Deref, DerefMut)]
+#[reflect(Resource, InspectorOptions, Default)]
+struct MapSettings(pub Vec<HeightmapSettings>);
 
 #[derive(Component)]
 struct HeightmapMarker;
@@ -137,20 +143,19 @@ fn generate_heightmap(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut layers: ResMut<HeightmapLayers>,
+    settings: Res<MapSettings>,
 ) {
     // Clear existing heightmaps entities
     for entity in &q_existing_heightmap {
         commands.entity(entity).despawn_recursive();
     }
+    layers.clear();
 
-    for heightmap in &mut layers.0 {
-        heightmap.clear();
-        generator::generate_terrain(heightmap);
-        heightmap.image = images.add(heightmap.into());
+    for settings in settings.iter() {
+        let mut heightmap = generator::generate_terrain(settings);
+        heightmap.image = images.add((&heightmap).into());
+        layers.push(heightmap);
     }
-
-    // Prevent change detection from looping over and over again
-    layers.bypass_change_detection();
 
     let Some(heightmap) = layers.0.first() else {
         return;
