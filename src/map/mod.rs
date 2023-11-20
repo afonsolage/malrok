@@ -11,11 +11,13 @@ use bevy_inspector_egui::{
     prelude::ReflectInspectorOptions, quick::ResourceInspectorPlugin, InspectorOptions,
 };
 
-use self::heightmap::{Heightmap, HeightmapSettings};
+use self::{
+    generator::combine_heightmap_layers,
+    heightmap::{Heightmap, HeightmapSettings},
+};
 
 mod generator;
 mod heightmap;
-mod layered_heightmap;
 mod mesher;
 
 pub struct MapPlugin;
@@ -152,14 +154,20 @@ fn generate_heightmap(
     layers.clear();
 
     for settings in settings.iter() {
+        if !settings.enabled {
+            continue;
+        }
+
         let mut heightmap = generator::generate_terrain(settings);
         heightmap.image = images.add((&heightmap).into());
         layers.push(heightmap);
     }
 
-    let Some(heightmap) = layers.0.first() else {
+    if layers.is_empty() {
         return;
-    };
+    }
+
+    let heightmap = combine_heightmap_layers(layers.as_ref());
 
     commands.spawn((
         PbrBundle {

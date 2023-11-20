@@ -1,9 +1,12 @@
 use libnoise::{Generator, Source};
 
-use super::heightmap::{Heightmap, HeightmapSettings};
+use super::{
+    heightmap::{Heightmap, HeightmapSettings},
+    HeightmapLayers,
+};
 
 pub fn generate_terrain(settings: &HeightmapSettings) -> Heightmap {
-    let mut heightmap = Heightmap::new(settings.width, settings.depth);
+    let mut heightmap = Heightmap::new(settings.name.clone(), settings.width, settings.depth);
     let generator = Source::simplex(settings.seed).fbm(
         settings.octaves,
         settings.frequency,
@@ -22,4 +25,16 @@ pub fn generate_terrain(settings: &HeightmapSettings) -> Heightmap {
     }
 
     heightmap
+}
+
+pub fn combine_heightmap_layers(layers: &HeightmapLayers) -> Heightmap {
+    let mut combined_heightmap = Heightmap::new("Final", 256, 256);
+
+    for heightmap in layers.iter() {
+        for (index, height) in heightmap.into_iter().enumerate() {
+            combined_heightmap[index] = (combined_heightmap[index] + height) / 2.0;
+        }
+    }
+
+    combined_heightmap
 }

@@ -1,9 +1,10 @@
 use bevy::prelude::*;
 use bevy_inspector_egui::{prelude::ReflectInspectorOptions, InspectorOptions};
 
-#[derive(Resource, Debug, InspectorOptions, Reflect, Clone, Copy)]
+#[derive(Resource, Debug, InspectorOptions, Reflect, Clone)]
 #[reflect(Resource, Default, Debug)]
 pub struct HeightmapSettings {
+    pub name: String,
     pub width: u16,
     pub depth: u16,
     pub seed: u64,
@@ -15,6 +16,7 @@ pub struct HeightmapSettings {
     pub persistence: f64,
     // Initial frequency
     pub frequency: f64,
+    pub enabled: bool,
 }
 
 impl HeightmapSettings {
@@ -30,6 +32,7 @@ impl HeightmapSettings {
 impl Default for HeightmapSettings {
     fn default() -> Self {
         Self {
+            name: "".to_string(),
             width: 256,
             depth: 256,
             seed: 42,
@@ -37,6 +40,7 @@ impl Default for HeightmapSettings {
             persistence: 0.5,
             frequency: 1.0,
             lacunarity: 2.0,
+            enabled: true,
         }
     }
 }
@@ -55,6 +59,7 @@ impl Default for HeightmapSettings {
 #[derive(Resource, Reflect, InspectorOptions, Debug, Clone)]
 #[reflect(Resource, Default, InspectorOptions)]
 pub struct Heightmap {
+    pub name: String,
     pub width: u16,
     pub depth: u16,
     #[reflect(ignore)]
@@ -63,8 +68,9 @@ pub struct Heightmap {
 }
 
 impl Heightmap {
-    pub fn new(width: u16, depth: u16) -> Self {
+    pub fn new(name: impl ToString, width: u16, depth: u16) -> Self {
         Heightmap {
+            name: name.to_string(),
             width,
             depth,
             buffer: vec![0.0; width as usize * depth as usize],
@@ -105,6 +111,7 @@ impl Default for Heightmap {
         let width = 256;
         let depth = 256;
         Self {
+            name: default(),
             buffer: vec![0.0; width as usize * depth as usize],
             width,
             depth,
